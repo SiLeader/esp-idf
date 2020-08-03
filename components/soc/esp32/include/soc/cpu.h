@@ -15,25 +15,24 @@
 #ifndef _SOC_CPU_H
 #define _SOC_CPU_H
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "xtensa/corebits.h"
+#include <stdint.h>
 #include "xtensa/config/core.h"
+#include "xtensa/corebits.h"
 
 /* C macros for xtensa special register read/write/exchange */
 
-#define RSR(reg, curval)  asm volatile ("rsr %0, " #reg : "=r" (curval));
-#define WSR(reg, newval)  asm volatile ("wsr %0, " #reg : : "r" (newval));
-#define XSR(reg, swapval) asm volatile ("xsr %0, " #reg : "+r" (swapval));
+#define RSR(reg, curval) asm volatile("rsr %0, " #reg : "=r"(curval));
+#define WSR(reg, newval) asm volatile("wsr %0, " #reg : : "r"(newval));
+#define XSR(reg, swapval) asm volatile("xsr %0, " #reg : "+r"(swapval));
 
 /** @brief Read current stack pointer address
  *
  */
-static inline void *get_sp()
-{
+static inline void *get_sp() {
     void *sp;
-    asm volatile ("mov %0, sp;" : "=r" (sp));
+    asm volatile("mov %0, sp;" : "=r"(sp));
     return sp;
 }
 
@@ -41,23 +40,19 @@ static inline void *get_sp()
  * See Xtensa ISA Reference manual for explanation of arguments (section 4.6.3.2).
  */
 
-static inline void cpu_write_dtlb(uint32_t vpn, unsigned attr)
-{
-    asm volatile ("wdtlb  %1, %0; dsync\n" :: "r" (vpn), "r" (attr));
+static inline void cpu_write_dtlb(uint32_t vpn, unsigned attr) {
+    asm volatile("wdtlb  %1, %0; dsync\n" ::"r"(vpn), "r"(attr));
 }
 
-
-static inline void cpu_write_itlb(unsigned vpn, unsigned attr)
-{
-    asm volatile ("witlb  %1, %0; isync\n" :: "r" (vpn), "r" (attr));
+static inline void cpu_write_itlb(unsigned vpn, unsigned attr) {
+    asm volatile("witlb  %1, %0; isync\n" ::"r"(vpn), "r"(attr));
 }
 
-static inline void cpu_init_memctl()
-{
+static inline void cpu_init_memctl() {
 #if XCHAL_ERRATUM_572
     uint32_t memctl = XCHAL_CACHE_MEMCTL_DEFAULT;
     WSR(MEMCTL, memctl);
-#endif // XCHAL_ERRATUM_572
+#endif  // XCHAL_ERRATUM_572
 }
 
 /**
@@ -71,10 +66,9 @@ static inline void cpu_init_memctl()
  * 15 — no access, raise exception
  */
 
-static inline void cpu_configure_region_protection()
-{
+static inline void cpu_configure_region_protection() {
     const uint32_t pages_to_protect[] = {0x00000000, 0x80000000, 0xa0000000, 0xc0000000, 0xe0000000};
-    for (int i = 0; i < sizeof(pages_to_protect)/sizeof(pages_to_protect[0]); ++i) {
+    for (size_t i = 0; i < sizeof(pages_to_protect) / sizeof(pages_to_protect[0]); ++i) {
         cpu_write_dtlb(pages_to_protect[i], 0xf);
         cpu_write_itlb(pages_to_protect[i], 0xf);
     }
@@ -100,7 +94,6 @@ void esp_cpu_unstall(int cpu_id);
  */
 void esp_cpu_reset(int cpu_id);
 
-
 /**
  * @brief Returns true if a JTAG debugger is attached to CPU
  * OCD (on chip debug) port.
@@ -121,13 +114,12 @@ bool esp_cpu_in_ocd_debug_mode();
  *
  * @return Address in uint32_t format
  */
-static inline uint32_t esp_cpu_process_stack_pc(uint32_t pc)
-{
+static inline uint32_t esp_cpu_process_stack_pc(uint32_t pc) {
     if (pc & 0x80000000) {
-        //Top two bits of a0 (return address) specify window increment. Overwrite to map to address space.
+        // Top two bits of a0 (return address) specify window increment. Overwrite to map to address space.
         pc = (pc & 0x3fffffff) | 0x40000000;
     }
-    //Minus 3 to get PC of previous instruction (i.e. instruction executed before return address)
+    // Minus 3 to get PC of previous instruction (i.e. instruction executed before return address)
     return pc - 3;
 }
 
